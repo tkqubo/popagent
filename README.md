@@ -24,7 +24,7 @@ tmux session name format: `ai-pop-prompt-<epoch>` (override with `-s`).
 |---|---|---|
 | [Node.js](https://nodejs.org/) ≥ 18 | Runtime | `brew install node` |
 | [tmux](https://github.com/tmux/tmux/wiki) | Session manager hosting the agent | `brew install tmux` |
-| [iTerm2](https://iterm2.com/) | Terminal that AppleScript can drive | <https://iterm2.com/> |
+| [iTerm2](https://iterm2.com/) | Terminal that AppleScript can drive | `brew install --cask iterm2` |
 
 ## Install
 
