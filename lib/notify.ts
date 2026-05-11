@@ -34,17 +34,13 @@ export function attachIterm(session: string, log: Logger): void {
  * exit code 0 (subprocess permission quirk). We still try, but document this
  * limitation.
  */
-export function terminalNotifier(
-  session: string,
-  prNumber: number,
-  log: Logger,
-): void {
+export function terminalNotifier(session: string, log: Logger): void {
   const applescript = `tell application "iTerm" to create window with default profile command "tmux attach -t ${session}"`;
   const executeCmd = `osascript -e ${shellQuote(applescript)}`;
   const args = [
     "terminal-notifier",
     "-title", "AI Agent Started",
-    "-subtitle", `New comment on PR #${prNumber}`,
+    "-subtitle", "Agent session launched",
     "-message", "Click to attach in iTerm2",
     "-execute", executeCmd,
   ];

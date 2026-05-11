@@ -1,7 +1,5 @@
 /**
  * The core of "pop": spin up tmux + iTerm2 + an AI agent for a given prompt.
- *
- * Each subcommand (pop-prompt / pop-pr / pop-pr-polling) just calls pop().
  */
 import type { Logger } from "./log.ts";
 import { attachIterm, osascriptNotify, terminalNotifier } from "./notify.ts";
@@ -19,13 +17,6 @@ export interface PopOptions {
   title?: string;
   /** When false, use terminal-notifier + osascript instead of iTerm auto-attach */
   autoAttach?: boolean;
-  /** PR number for notification subtitle (notification mode only) */
-  prNumber?: number;
-  /**
-   * Launch command template. `{comment}` is replaced with shellQuote(prompt).
-   * Defaults to `claude {comment}`.
-   */
-  agentCommandTemplate?: string;
   log: Logger;
 }
 
@@ -40,11 +31,7 @@ export async function pop(opts: PopOptions): Promise<PopResult> {
   }
 
   const escapedPrompt = shellQuote(opts.prompt);
-  const template = opts.agentCommandTemplate ?? "claude {comment}";
-  if (!template.includes("{comment}")) {
-    return { ok: false, error: "agentCommandTemplate must contain {comment} placeholder" };
-  }
-  const claudeCmd = template.replace("{comment}", escapedPrompt);
+  const claudeCmd = `claude ${escapedPrompt}`;
   const userShell = process.env.SHELL || "/bin/zsh";
   // Keep the tmux session alive after the agent exits by execing into a login shell.
   const wrappedCmd = `${claudeCmd}; exec ${shellQuote(userShell)} -l`;
@@ -67,10 +54,10 @@ export async function pop(opts: PopOptions): Promise<PopResult> {
   if (opts.autoAttach !== false) {
     attachIterm(opts.sessionName, opts.log);
   } else {
-    terminalNotifier(opts.sessionName, opts.prNumber ?? 0, opts.log);
+    terminalNotifier(opts.sessionName, opts.log);
     osascriptNotify(
       "AI Agent Started",
-      opts.prNumber != null ? `New comment on PR #${opts.prNumber}` : "Agent session launched",
+      "Agent session launched",
       `tmux attach -t ${opts.sessionName}`,
       opts.log,
     );

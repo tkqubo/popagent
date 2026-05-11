@@ -1,6 +1,4 @@
 node_modules/
 dist/
 .env
-config.json
-.state/
 .DS_Store
