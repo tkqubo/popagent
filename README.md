@@ -45,7 +45,8 @@ popagent -p "..." -s my-session                # custom tmux session name
 
 ## Development
 
-This repo is set up with [Bun](https://bun.sh) (`bun.lock` is committed).
+This repo is developed with [Bun](https://bun.sh) — `bun install` populates
+`node_modules/` and regenerates `bun.lock`.
 
 ```bash
 git clone <this-repo>
@@ -53,15 +54,14 @@ cd popagent
 bun install
 bun run typecheck         # tsc --noEmit
 bun run build             # tsup → dist/popagent.js
-bun run dev -- -p "test"  # tsx popagent.ts -p "test"
-# or: bun popagent.ts -p "test"   # bun runs TS directly, no tsx needed
+bun run dev -- -p "test"  # bun popagent.ts -p "test" (TS runs directly)
 ```
 
 Linking the local build globally:
 
 ```bash
 bun run build
-npm link                  # `bun link` also works
+bun link
 popagent --help
 ```
 

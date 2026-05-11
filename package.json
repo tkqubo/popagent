@@ -1,7 +1,7 @@
 {
   "name": "popagent",
   "version": "0.1.0",
-  "description": "Pop an AI agent into tmux + iTerm2 from various triggers (macOS)",
+  "description": "Pop an AI agent into tmux + iTerm2 from a prompt (macOS)",
   "type": "module",
   "bin": {
     "popagent": "./dist/popagent.js"
@@ -16,9 +16,9 @@
   },
   "scripts": {
     "build": "tsup",
-    "dev": "tsx popagent.ts",
+    "dev": "bun popagent.ts",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "bun run build"
   },
   "dependencies": {
     "citty": "^0.1.6"
@@ -26,7 +26,6 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsup": "^8.0.0",
-    "tsx": "^4.0.0",
     "typescript": "^5.4.0"
   }
 }
