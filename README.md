@@ -45,20 +45,23 @@ popagent -p "..." -s my-session                # custom tmux session name
 
 ## Development
 
+This repo is set up with [Bun](https://bun.sh) (`bun.lock` is committed).
+
 ```bash
 git clone <this-repo>
 cd popagent
-npm install
-npm run typecheck        # tsc --noEmit
-npm run build            # tsup → dist/popagent.js
-npm run dev -- -p "test" # tsx popagent.ts -p "test"
+bun install
+bun run typecheck         # tsc --noEmit
+bun run build             # tsup → dist/popagent.js
+bun run dev -- -p "test"  # tsx popagent.ts -p "test"
+# or: bun popagent.ts -p "test"   # bun runs TS directly, no tsx needed
 ```
 
 Linking the local build globally:
 
 ```bash
-npm run build
-npm link
+bun run build
+npm link                  # `bun link` also works
 popagent --help
 ```
 
