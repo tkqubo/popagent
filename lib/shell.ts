@@ -1,5 +1,5 @@
 /**
- * Quote helpers for POSIX shell and AppleScript.
+ * POSIX shell helpers.
  */
 import { runSync } from "./process.ts";
 
@@ -8,13 +8,6 @@ import { runSync } from "./process.ts";
  */
 export function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'"'"'`)}'`;
-}
-
-/**
- * AppleScript string literal ("..."): escape \ and ".
- */
-export function applescriptQuote(s: string): string {
-  return '"' + s.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
 }
 
 /**

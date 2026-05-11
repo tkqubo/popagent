@@ -2,7 +2,7 @@
  * The core of "pop": spin up tmux + iTerm2 + an AI agent for a given prompt.
  */
 import type { Logger } from "./log.ts";
-import { attachIterm } from "./notify.ts";
+import { attachIterm } from "./iterm.ts";
 import { runSync, sleep } from "./process.ts";
 import { shellQuote, whichSync } from "./shell.ts";
 
