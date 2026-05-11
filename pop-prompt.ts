@@ -53,7 +53,6 @@ export const popPromptCommand = defineCommand({
       cwd,
       sessionName: session,
       title: args.title,
-      autoAttach: true,
       log,
     });
     if (!result.ok) {

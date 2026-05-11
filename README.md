@@ -3,7 +3,7 @@
 Pop an AI agent (Claude Code, etc.) into a fresh tmux + iTerm2 window from a
 prompt. Written in TypeScript, runs on Node.js.
 
-> macOS only. Relies on `osascript`, iTerm2, and (optionally) `terminal-notifier`.
+> macOS only. Relies on `osascript` and iTerm2.
 
 ## What it does
 
@@ -25,7 +25,6 @@ tmux session name format: `ai-pop-prompt-<epoch>` (override with `-s`).
 | [Node.js](https://nodejs.org/) ≥ 18 | Runtime | `brew install node` |
 | [tmux](https://github.com/tmux/tmux/wiki) | Session manager hosting the agent | `brew install tmux` |
 | [iTerm2](https://iterm2.com/) | Terminal that AppleScript can drive | <https://iterm2.com/> |
-| [terminal-notifier](https://github.com/julienXX/terminal-notifier) (optional) | Used only when `auto_attach: false` | `brew install terminal-notifier` |
 
 ## Install
 

@@ -2,7 +2,7 @@
  * The core of "pop": spin up tmux + iTerm2 + an AI agent for a given prompt.
  */
 import type { Logger } from "./log.ts";
-import { attachIterm, osascriptNotify, terminalNotifier } from "./notify.ts";
+import { attachIterm } from "./notify.ts";
 import { runSync, sleep } from "./process.ts";
 import { shellQuote, whichSync } from "./shell.ts";
 
@@ -15,8 +15,6 @@ export interface PopOptions {
   sessionName: string;
   /** Sent as `/rename <title>` via tmux send-keys after launch */
   title?: string;
-  /** When false, use terminal-notifier + osascript instead of iTerm auto-attach */
-  autoAttach?: boolean;
   log: Logger;
 }
 
@@ -50,18 +48,7 @@ export async function pop(opts: PopOptions): Promise<PopResult> {
     };
   }
 
-  // Notification or auto-attach
-  if (opts.autoAttach !== false) {
-    attachIterm(opts.sessionName, opts.log);
-  } else {
-    terminalNotifier(opts.sessionName, opts.log);
-    osascriptNotify(
-      "AI Agent Started",
-      "Agent session launched",
-      `tmux attach -t ${opts.sessionName}`,
-      opts.log,
-    );
-  }
+  attachIterm(opts.sessionName, opts.log);
 
   // Wait for the agent UI to render, then send `/rename`.
   if (opts.title) {
