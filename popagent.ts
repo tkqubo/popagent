@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * popagent — pop an AI agent into tmux + iTerm2 from a prompt.
  *
