@@ -53,6 +53,23 @@ popagent -p "..." -t "TF-9341 review"          # sends /rename inside the agent
 popagent -p "..." -s my-session                # custom tmux session name
 ```
 
+## Configuration
+
+Optional user-level config at `~/.config/popagent/config.json` (override path
+with `$XDG_CONFIG_HOME`):
+
+```json
+{
+  "defaultAgent": "codex"
+}
+```
+
+| Field | Type | Effect |
+|---|---|---|
+| `defaultAgent` | `"claude"` \| `"codex"` \| `"cursor"` | Agent to spawn when `--agent` is not passed (built-in fallback: `claude`) |
+
+`--agent` on the command line always overrides this.
+
 ## Development
 
 This repo is developed with [Bun](https://bun.sh) — `bun install` populates

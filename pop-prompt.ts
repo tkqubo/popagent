@@ -7,12 +7,13 @@ import { defineCommand } from "citty";
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { AGENTS, AGENT_KINDS, isAgentKind } from "./lib/agent.ts";
+import { loadConfig } from "./lib/config.ts";
 import { makeLogger } from "./lib/log.ts";
 import { pop } from "./lib/pop.ts";
 
 const log = makeLogger("pop-prompt");
 
-const DEFAULT_AGENT = "claude";
+const DEFAULT_AGENT = loadConfig().defaultAgent ?? "claude";
 
 export const popPromptCommand = defineCommand({
   meta: {
@@ -30,7 +31,7 @@ export const popPromptCommand = defineCommand({
       type: "string",
       alias: "a",
       default: DEFAULT_AGENT,
-      description: `AI agent CLI to spawn (${AGENT_KINDS.join(" | ")})`,
+      description: `AI agent CLI to spawn (${AGENT_KINDS.join(" | ")}). Overrides defaultAgent from ~/.config/popagent/config.json.`,
     },
     cwd: {
       type: "string",
