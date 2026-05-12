@@ -1,6 +1,7 @@
 /**
  * The core of "pop": spin up tmux + iTerm2 + an AI agent for a given prompt.
  */
+import type { AgentSpec } from "./agent.ts";
 import type { Logger } from "./log.ts";
 import { attachIterm } from "./iterm.ts";
 import { runSync, sleep } from "./process.ts";
@@ -9,6 +10,8 @@ import { shellQuote, whichSync } from "./shell.ts";
 export interface PopOptions {
   /** Initial prompt passed to the agent */
   prompt: string;
+  /** Agent to spawn */
+  agent: AgentSpec;
   /** Working directory (absolute path) */
   cwd: string;
   /** tmux session name */
@@ -28,11 +31,11 @@ export async function pop(opts: PopOptions): Promise<PopResult> {
     return { ok: false, error: "tmux not found. Run `brew install tmux`." };
   }
 
-  const escapedPrompt = shellQuote(opts.prompt);
-  const claudeCmd = `claude ${escapedPrompt}`;
+  const agentArgv = [opts.agent.command, ...opts.agent.buildArgs(opts.prompt)];
+  const agentCmd = agentArgv.map(shellQuote).join(" ");
   const userShell = process.env.SHELL || "/bin/zsh";
   // Keep the tmux session alive after the agent exits by execing into a login shell.
-  const wrappedCmd = `${claudeCmd}; exec ${shellQuote(userShell)} -l`;
+  const wrappedCmd = `${agentCmd}; exec ${shellQuote(userShell)} -l`;
 
   opts.log(
     "INFO",

@@ -6,10 +6,13 @@
 import { defineCommand } from "citty";
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
+import { AGENTS, AGENT_KINDS, isAgentKind } from "./lib/agent.ts";
 import { makeLogger } from "./lib/log.ts";
 import { pop } from "./lib/pop.ts";
 
 const log = makeLogger("pop-prompt");
+
+const DEFAULT_AGENT = "claude";
 
 export const popPromptCommand = defineCommand({
   meta: {
@@ -23,6 +26,12 @@ export const popPromptCommand = defineCommand({
       alias: "p",
       description: "Initial prompt passed to the agent",
     },
+    agent: {
+      type: "string",
+      alias: "a",
+      default: DEFAULT_AGENT,
+      description: `AI agent CLI to spawn (${AGENT_KINDS.join(" | ")})`,
+    },
     cwd: {
       type: "string",
       alias: "C",
@@ -31,7 +40,7 @@ export const popPromptCommand = defineCommand({
     "session-name": {
       type: "string",
       alias: "s",
-      description: "tmux session name (default: ai-pop-prompt-<epoch>)",
+      description: "tmux session name (default: ai-pop-<agent>-<epoch>)",
     },
     title: {
       type: "string",
@@ -46,10 +55,20 @@ export const popPromptCommand = defineCommand({
       process.exit(2);
     }
 
+    if (!isAgentKind(args.agent)) {
+      log(
+        "ERROR",
+        `unknown --agent: ${args.agent}. expected one of: ${AGENT_KINDS.join(", ")}`,
+      );
+      process.exit(2);
+    }
+    const agentSpec = AGENTS[args.agent];
+
     const session =
-      args["session-name"] ?? `ai-pop-prompt-${Math.floor(Date.now() / 1000)}`;
+      args["session-name"] ?? `ai-pop-${args.agent}-${Math.floor(Date.now() / 1000)}`;
     const result = await pop({
       prompt: args.prompt,
+      agent: agentSpec,
       cwd,
       sessionName: session,
       title: args.title,
@@ -62,4 +81,3 @@ export const popPromptCommand = defineCommand({
     log("INFO", `launched: session=${result.session} cwd=${result.cwd}`);
   },
 });
-

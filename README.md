@@ -1,22 +1,30 @@
 # popagent
 
-Pop an AI agent (Claude Code, etc.) into a fresh tmux + iTerm2 window from a
-prompt. Written in TypeScript, runs on Node.js.
+Pop an AI coding agent (Claude Code / Codex / Cursor Agent) into a fresh
+tmux + iTerm2 window from a prompt. Written in TypeScript, runs on Node.js.
 
 > macOS only. Relies on `osascript` and iTerm2.
 
 ## What it does
 
-`popagent -p "<prompt>"`:
+`popagent -p "<prompt>" [--agent <kind>]`:
 
-1. Starts a detached tmux session running `claude '<prompt>'`
+1. Starts a detached tmux session running the chosen agent with the prompt as its initial argument
 2. Opens a new iTerm2 window that `tmux attach`es to that session
-3. Optionally sends `/rename <title>` via `tmux send-keys` so the agent's session has a friendly name
+3. Optionally sends `/rename <title>` via `tmux send-keys` so the agent's session has a friendly name (all three supported agents implement `/rename`)
 
 After the agent exits, the tmux session drops into a login shell so the window
 stays open.
 
-tmux session name format: `ai-pop-prompt-<epoch>` (override with `-s`).
+Supported agents:
+
+| `--agent` value | CLI command invoked | Notes |
+|---|---|---|
+| `claude` (default) | `claude "<prompt>"` | Claude Code |
+| `codex` | `codex "<prompt>"` | OpenAI Codex CLI |
+| `cursor` | `agent "<prompt>"` | Cursor Agent CLI (binary name: `agent`) |
+
+tmux session name format: `ai-pop-<agent>-<epoch>` (override with `-s`).
 
 ## Prerequisites (macOS)
 
@@ -38,6 +46,8 @@ That's it — `popagent` is on your `$PATH`.
 
 ```bash
 popagent -p "Summarize the repository layout"
+popagent -p "..." --agent codex                # spawn codex instead of claude
+popagent -p "..." --agent cursor               # spawn cursor agent
 popagent -p "..." -C ~/path/to/repo
 popagent -p "..." -t "TF-9341 review"          # sends /rename inside the agent
 popagent -p "..." -s my-session                # custom tmux session name
