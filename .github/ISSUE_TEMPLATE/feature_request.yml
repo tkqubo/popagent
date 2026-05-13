@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest a new capability or improvement.
+title: "[feat]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. popagent intentionally stays small — please
+        describe the use case so we can judge whether it fits.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the situation that prompted the request.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How would you like popagent to behave? CLI flag? Config option? New agent?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you weighed and rejected.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Links to similar tools, related issues, screenshots, etc.

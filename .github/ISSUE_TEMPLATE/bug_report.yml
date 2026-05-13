@@ -1,0 +1,80 @@
+name: Bug report
+description: Something is not working as expected.
+title: "[bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. Please fill in the
+        sections below so the issue can be reproduced quickly.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the unexpected behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: |
+        The exact command(s) you ran. If config is involved, paste the
+        relevant portion of `~/.config/popagent/config.json`.
+      placeholder: |
+        1. popagent -p "hello" --agent codex
+        2. ...
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: popagent-version
+    attributes:
+      label: popagent version
+      description: Output of `popagent --version` (or the git SHA if running from source).
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      placeholder: "14.5 (Sonoma)"
+    validations:
+      required: true
+
+  - type: input
+    id: node-version
+    attributes:
+      label: Node version
+      placeholder: "20.11.0"
+    validations:
+      required: true
+
+  - type: input
+    id: agent
+    attributes:
+      label: Agent CLI in use
+      description: Which agent was the prompt spawned against, and what version?
+      placeholder: "claude (Claude Code 2.x), codex (v0.130.0), or agent (Cursor 2026.05.09)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste any logs popagent printed (it prefixes lines with `[INFO]` / `[WARN]` / `[ERROR]`).
+      render: shell

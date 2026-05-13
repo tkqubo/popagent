@@ -99,6 +99,20 @@ popagent --help
 | `tmux: command not found` | `brew install tmux` |
 | `iTerm auto-attach failed` | System Settings → Privacy & Security → Automation → grant access to iTerm |
 
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, code style
+notes, and the release flow. Discussion of new features is welcome via
+[GitHub Discussions](https://github.com/tkqubo/popagent/discussions) or a
+feature-request issue.
+
+This project adheres to the [Contributor Covenant](./CODE_OF_CONDUCT.md).
+
+## Security
+
+For security-sensitive reports, please follow the private disclosure flow in
+[SECURITY.md](./SECURITY.md). Do not file public issues for vulnerabilities.
+
 ## License
 
 [MIT](./LICENSE)
