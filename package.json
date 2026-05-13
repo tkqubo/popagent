@@ -4,12 +4,34 @@
   "description": "Pop an AI agent into tmux + iTerm2 from a prompt (macOS)",
   "type": "module",
   "bin": {
-    "popagent": "./dist/popagent.js"
+    "popagent": "dist/popagent.js"
   },
   "files": [
     "dist",
     "LICENSE",
     "README.md"
+  ],
+  "license": "MIT",
+  "author": "Takaichi Hase (@tkqubo)",
+  "homepage": "https://github.com/tkqubo/popagent#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tkqubo/popagent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tkqubo/popagent/issues"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "codex",
+    "cursor",
+    "ai-agent",
+    "tmux",
+    "iterm",
+    "iterm2",
+    "macos",
+    "cli"
   ],
   "engines": {
     "node": ">=18"
