@@ -124,6 +124,10 @@ This repo is developed with [Bun](https://bun.sh) — `bun install` populates
 git clone <this-repo>
 cd popagent
 bun install
+bun run check             # biome lint + format check (CI gate)
+bun run check:write       # auto-apply safe lint/format fixes
+bun run lint              # biome lint only
+bun run format            # biome format --write
 bun run typecheck         # tsc --noEmit
 bun run build             # tsup → dist/popagent.js
 bun run dev -- -p "test"  # bun popagent.ts -p "test" (TS runs directly)

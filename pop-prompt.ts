@@ -3,10 +3,11 @@
  *
  * This module exports `popPromptCommand` consumed by `popagent.ts`.
  */
-import { defineCommand } from "citty";
+
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
-import { AGENTS, AGENT_KINDS, isAgentKind } from "./lib/agent.ts";
+import { defineCommand } from "citty";
+import { AGENT_KINDS, AGENTS, isAgentKind } from "./lib/agent.ts";
 import { findUnknownLongFlags } from "./lib/cli.ts";
 import { loadConfig } from "./lib/config.ts";
 import { makeLogger } from "./lib/log.ts";
@@ -89,19 +90,13 @@ export const popPromptCommand = defineCommand({
     }
 
     if (!isAgentKind(args.agent)) {
-      log(
-        "ERROR",
-        `unknown --agent: ${args.agent}. expected one of: ${AGENT_KINDS.join(", ")}`,
-      );
+      log("ERROR", `unknown --agent: ${args.agent}. expected one of: ${AGENT_KINDS.join(", ")}`);
       process.exit(2);
     }
     const agentSpec = AGENTS[args.agent];
 
     if (!isAttachMode(args.attach)) {
-      log(
-        "ERROR",
-        `unknown --attach: ${args.attach}. expected one of: ${ATTACH_MODES.join(", ")}`,
-      );
+      log("ERROR", `unknown --attach: ${args.attach}. expected one of: ${ATTACH_MODES.join(", ")}`);
       process.exit(2);
     }
 
@@ -110,8 +105,7 @@ export const popPromptCommand = defineCommand({
       process.exit(2);
     }
 
-    const session =
-      args["session-name"] ?? `ai-pop-${args.agent}-${Math.floor(Date.now() / 1000)}`;
+    const session = args["session-name"] ?? `ai-pop-${args.agent}-${Math.floor(Date.now() / 1000)}`;
     const result = await pop({
       prompt: args.prompt,
       agent: agentSpec,

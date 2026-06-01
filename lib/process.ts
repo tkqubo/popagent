@@ -5,10 +5,10 @@
  * runtime's spawn API.
  */
 import {
-  spawn,
-  spawnSync,
   type SpawnOptions,
   type SpawnSyncOptionsWithBufferEncoding,
+  spawn,
+  spawnSync,
 } from "node:child_process";
 
 export interface ProcResult {
@@ -30,16 +30,16 @@ export interface DetachedResult {
 }
 
 export function runSync(cmd: string[], opts: RunSyncOptions = {}): ProcResult {
-  if (cmd.length === 0) {
+  const [bin, ...args] = cmd;
+  if (!bin) {
     return { exitCode: -1, stdout: "", stderr: "empty command", error: new Error("empty command") };
   }
-  const [bin, ...args] = cmd;
   const spawnOpts: SpawnSyncOptionsWithBufferEncoding = {
     cwd: opts.cwd,
     timeout: opts.timeoutMs,
     encoding: "buffer",
   };
-  const res = spawnSync(bin!, args, spawnOpts);
+  const res = spawnSync(bin, args, spawnOpts);
   return {
     exitCode: res.status ?? -1,
     stdout: res.stdout ? res.stdout.toString("utf-8") : "",
@@ -49,18 +49,17 @@ export function runSync(cmd: string[], opts: RunSyncOptions = {}): ProcResult {
 }
 
 export function runDetached(cmd: string[], opts: RunSyncOptions = {}): DetachedResult {
-  if (cmd.length === 0) {
+  const [bin, ...args] = cmd;
+  if (!bin) {
     return { ok: false, error: new Error("empty command") };
   }
-
-  const [bin, ...args] = cmd;
   try {
     const spawnOpts: SpawnOptions = {
       cwd: opts.cwd,
       detached: true,
       stdio: "ignore",
     };
-    const child = spawn(bin!, args, spawnOpts);
+    const child = spawn(bin, args, spawnOpts);
     child.unref();
     return { ok: true, pid: child.pid ?? undefined };
   } catch (e) {

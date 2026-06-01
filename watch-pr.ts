@@ -3,10 +3,11 @@
  *
  * This module exports `watchCommand` consumed by `popagent.ts`.
  */
-import { defineCommand } from "citty";
+
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
-import { AGENTS, AGENT_KINDS, isAgentKind } from "./lib/agent.ts";
+import { defineCommand } from "citty";
+import { AGENT_KINDS, AGENTS, isAgentKind } from "./lib/agent.ts";
 import { findUnknownLongFlags } from "./lib/cli.ts";
 import { loadConfig } from "./lib/config.ts";
 import { FILTER_MODES, isFilterMode } from "./lib/filter.ts";
@@ -49,8 +50,10 @@ function parsePrList(input: string): number[] | null {
 function parseDuration(input: string): number | null {
   const m = /^([0-9]+(?:\.[0-9]+)?)([smhd])$/.exec(input.trim());
   if (!m) return null;
-  const value = Number.parseFloat(m[1]!);
-  const unit = DURATION_UNITS_MS[m[2]!];
+  const [, valueStr, unitChar] = m;
+  if (!valueStr || !unitChar) return null;
+  const value = Number.parseFloat(valueStr);
+  const unit = DURATION_UNITS_MS[unitChar];
   if (!Number.isFinite(value) || value <= 0 || unit === undefined) return null;
   return value * unit;
 }
@@ -59,7 +62,8 @@ const watchArgs = {
   pr: {
     type: "string",
     required: true,
-    description: "PR number(s) to watch. Comma-separated for multiple PRs in the same repo (e.g. 4298,4300,4310).",
+    description:
+      "PR number(s) to watch. Comma-separated for multiple PRs in the same repo (e.g. 4298,4300,4310).",
   },
   interval: {
     type: "string",
