@@ -87,16 +87,11 @@ export type PrPreflight = "exists" | "not_found" | { error: string };
  * a wrong-cwd / wrong-number invocation fails fast instead of silently 404'ing
  * every poll.
  */
-export function checkPrExists(
-  ghPath: string,
-  slug: string,
-  pr: number,
-  cwd: string,
-): PrPreflight {
-  const r = runSync(
-    [ghPath, "api", `repos/${slug}/pulls/${pr}`, "--jq", ".number"],
-    { cwd, timeoutMs: TIMEOUT_MS },
-  );
+export function checkPrExists(ghPath: string, slug: string, pr: number, cwd: string): PrPreflight {
+  const r = runSync([ghPath, "api", `repos/${slug}/pulls/${pr}`, "--jq", ".number"], {
+    cwd,
+    timeoutMs: TIMEOUT_MS,
+  });
   if (r.exitCode === 0) return "exists";
   const stderr = r.stderr.trim();
   if (stderr.includes("HTTP 404") || stderr.includes("Not Found")) return "not_found";
@@ -105,10 +100,10 @@ export function checkPrExists(
 
 /** Resolve the `owner/repo` slug for the repository at `cwd`. */
 export function getRepoSlug(ghPath: string, cwd: string, log: Logger): string | null {
-  const r = runSync(
-    [ghPath, "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
-    { cwd, timeoutMs: TIMEOUT_MS },
-  );
+  const r = runSync([ghPath, "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"], {
+    cwd,
+    timeoutMs: TIMEOUT_MS,
+  });
   if (r.exitCode !== 0) {
     log("ERROR", `gh repo view failed (is ${cwd} a GitHub repo?): ${r.stderr.trim()}`);
     return null;
@@ -164,23 +159,25 @@ function normalizeComments(raw: RawComment[], kind: "issue" | "review"): PrComme
 }
 
 function normalizeReviews(raw: RawReview[]): PrComment[] {
-  return raw
-    // Bare approvals / dismissals with no written body are noise — skip them.
-    .filter((r) => (r.body ?? "").trim().length > 0)
-    .map((r) => {
-      const createdAtMs = r.submitted_at ? Date.parse(r.submitted_at) : Number.NaN;
-      const updatedAtMs = r.updated_at ? Date.parse(r.updated_at) : createdAtMs;
-      return {
-        key: `review_summary:${r.id}`,
-        kind: "review_summary" as const,
-        author: r.user?.login ?? "unknown",
-        body: r.body ?? "",
-        createdAtMs,
-        updatedAtMs,
-        url: r.html_url ?? "",
-        reviewState: r.state,
-      };
-    });
+  return (
+    raw
+      // Bare approvals / dismissals with no written body are noise — skip them.
+      .filter((r) => (r.body ?? "").trim().length > 0)
+      .map((r) => {
+        const createdAtMs = r.submitted_at ? Date.parse(r.submitted_at) : Number.NaN;
+        const updatedAtMs = r.updated_at ? Date.parse(r.updated_at) : createdAtMs;
+        return {
+          key: `review_summary:${r.id}`,
+          kind: "review_summary" as const,
+          author: r.user?.login ?? "unknown",
+          body: r.body ?? "",
+          createdAtMs,
+          updatedAtMs,
+          url: r.html_url ?? "",
+          reviewState: r.state,
+        };
+      })
+  );
 }
 
 /**

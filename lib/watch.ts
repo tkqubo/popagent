@@ -5,15 +5,21 @@
  * builds a prompt and hands it to `pop()` (always in notification mode).
  */
 import type { AgentSpec } from "./agent.ts";
+import {
+  type Classification,
+  classifyComment,
+  type FilterMode,
+  filterEnabled,
+  shouldPop,
+} from "./filter.ts";
 import { FilterCache } from "./filter-cache.ts";
-import { classifyComment, filterEnabled, shouldPop, type Classification, type FilterMode } from "./filter.ts";
 import {
   checkPrExists,
   fetchPrComments,
   getRepoSlug,
   getViewerLogin,
-  resolveGh,
   type PrComment,
+  resolveGh,
 } from "./github.ts";
 import type { Logger } from "./log.ts";
 import { pop } from "./pop.ts";
@@ -67,7 +73,10 @@ export async function watchPr(opts: WatchOptions): Promise<WatchResult> {
     if (status === "not_found") {
       missing.push(pr);
     } else if (typeof status === "object") {
-      opts.log("WARN", `PR #${pr} pre-flight unclear: ${status.error}; will attempt polling anyway`);
+      opts.log(
+        "WARN",
+        `PR #${pr} pre-flight unclear: ${status.error}; will attempt polling anyway`,
+      );
     }
   }
   if (missing.length > 0) {
@@ -94,9 +103,7 @@ export async function watchPr(opts: WatchOptions): Promise<WatchResult> {
   const baselineMs = Date.now() - (opts.lookbackMs ?? 0);
   // key → updatedAtMs we last processed at. A comment is "fresh" if absent or
   // if its updatedAtMs moved forward (i.e. it was edited).
-  const seenByPr = new Map<number, Map<string, number>>(
-    opts.prs.map((pr) => [pr, new Map()]),
-  );
+  const seenByPr = new Map<number, Map<string, number>>(opts.prs.map((pr) => [pr, new Map()]));
 
   const filterActive = filterEnabled(opts.filterMode, opts.agent);
   if (opts.filterMode === "non-issue" && !filterActive) {
@@ -124,7 +131,11 @@ export async function watchPr(opts: WatchOptions): Promise<WatchResult> {
   for (;;) {
     for (const pr of opts.prs) {
       try {
-        const seen = seenByPr.get(pr)!;
+        let seen = seenByPr.get(pr);
+        if (!seen) {
+          seen = new Map<string, number>();
+          seenByPr.set(pr, seen);
+        }
         const comments = fetchPrComments(ghPath, slug, pr, opts.cwd, opts.log);
         const fresh = comments.filter((c) => {
           if (!Number.isFinite(c.createdAtMs)) return false;
@@ -140,10 +151,7 @@ export async function watchPr(opts: WatchOptions): Promise<WatchResult> {
           return true;
         });
         for (const c of fresh) {
-          seen.set(
-            c.key,
-            Number.isFinite(c.updatedAtMs) ? c.updatedAtMs : c.createdAtMs,
-          );
+          seen.set(c.key, Number.isFinite(c.updatedAtMs) ? c.updatedAtMs : c.createdAtMs);
         }
 
         if (fresh.length > 0) {
@@ -154,7 +162,10 @@ export async function watchPr(opts: WatchOptions): Promise<WatchResult> {
           if (toPop.length > 0) {
             await handleNewComments(opts, slug, pr, toPop);
           } else if (filterActive) {
-            opts.log("INFO", `PR #${pr}: all ${fresh.length} comment(s) classified as non-issue; nothing to pop`);
+            opts.log(
+              "INFO",
+              `PR #${pr}: all ${fresh.length} comment(s) classified as non-issue; nothing to pop`,
+            );
           }
         } else {
           opts.log("INFO", `PR #${pr}: no new comments`);
@@ -167,6 +178,13 @@ export async function watchPr(opts: WatchOptions): Promise<WatchResult> {
   }
 }
 
+interface FilterItem {
+  comment: PrComment;
+  cacheKey: string;
+  hit: ReturnType<FilterCache["get"]>;
+  stale: boolean;
+}
+
 async function applyFilter(
   fresh: PrComment[],
   opts: WatchOptions,
@@ -174,65 +192,66 @@ async function applyFilter(
   slug: string,
   cache: FilterCache,
 ): Promise<PrComment[]> {
-  const decisions: Classification[] = new Array(fresh.length);
-  const needsClassify: number[] = [];
-  let cacheHits = 0;
-  let staleHits = 0;
-
-  for (let i = 0; i < fresh.length; i++) {
-    const c = fresh[i]!;
-    const key = `${slug}:${c.key}`;
-    const hit = cache.get(key);
+  // Build per-comment metadata so we can iterate without parallel arrays /
+  // index-based array access.
+  const items: FilterItem[] = fresh.map((comment) => {
+    const cacheKey = `${slug}:${comment.key}`;
+    const hit = cache.get(cacheKey);
+    let stale = false;
     if (hit) {
       const hitAtMs = Date.parse(hit.at);
-      const editedAfterCache =
+      stale =
         Number.isFinite(hitAtMs) &&
-        Number.isFinite(c.updatedAtMs) &&
-        c.updatedAtMs > hitAtMs;
-      if (!editedAfterCache) {
-        decisions[i] = hit.classification;
-        cacheHits++;
-        continue;
-      }
-      staleHits++;
+        Number.isFinite(comment.updatedAtMs) &&
+        comment.updatedAtMs > hitAtMs;
     }
-    needsClassify.push(i);
-  }
+    return { comment, cacheKey, hit, stale };
+  });
 
-  if (needsClassify.length > 0) {
-    const fresh_results = await Promise.all(
-      needsClassify.map((idx) => classifyComment(fresh[idx]!, opts.agent, opts.log)),
-    );
-    const agentName = opts.agent.command;
-    for (let j = 0; j < needsClassify.length; j++) {
-      const idx = needsClassify[j]!;
-      const d = fresh_results[j]!;
-      decisions[idx] = d;
-      if (d !== "uncertain") {
-        cache.set(`${slug}:${fresh[idx]!.key}`, d, agentName);
-      }
+  const toClassify = items.filter(({ hit, stale }) => !hit || stale);
+
+  const classifications = await Promise.all(
+    toClassify.map((item) => classifyComment(item.comment, opts.agent, opts.log)),
+  );
+  const classificationByItem = new Map<FilterItem, Classification>();
+  toClassify.forEach((item, j) => {
+    const d = classifications[j];
+    if (d !== undefined) classificationByItem.set(item, d);
+  });
+
+  const agentName = opts.agent.command;
+  for (const item of toClassify) {
+    const d = classificationByItem.get(item);
+    if (d !== undefined && d !== "uncertain") {
+      cache.set(item.cacheKey, d, agentName);
     }
-    cache.flush();
   }
+  if (toClassify.length > 0) cache.flush();
 
-  if (cacheHits > 0 || staleHits > 0 || needsClassify.length > 0) {
+  const cacheHits = items.filter(({ hit, stale }) => hit && !stale).length;
+  const staleHits = items.filter(({ stale }) => stale).length;
+  if (cacheHits > 0 || staleHits > 0 || toClassify.length > 0) {
     opts.log(
       "INFO",
-      `PR #${pr}: filter (cache hits=${cacheHits}, stale=${staleHits}, AI calls=${needsClassify.length})`,
+      `PR #${pr}: filter (cache hits=${cacheHits}, stale=${staleHits}, AI calls=${toClassify.length})`,
     );
   }
 
   const survivors: PrComment[] = [];
-  for (let i = 0; i < fresh.length; i++) {
-    const c = fresh[i]!;
-    const d = decisions[i]!;
-    if (shouldPop(d, opts.filterMode)) {
-      survivors.push(c);
+  for (const item of items) {
+    const d = item.hit && !item.stale ? item.hit.classification : classificationByItem.get(item);
+    // Defensive fallback: if we somehow lack a verdict, lean toward popping so
+    // the comment isn't silently dropped.
+    const verdict: Classification = d ?? "uncertain";
+    if (shouldPop(verdict, opts.filterMode)) {
+      survivors.push(item.comment);
     } else {
-      const snippet = c.body.replace(/\s+/g, " ").slice(0, 80);
+      const snippet = item.comment.body.replace(/\s+/g, " ").slice(0, 80);
       opts.log(
         "INFO",
-        `PR #${pr}: filtered out @${c.author} (${d}): "${snippet}${c.body.length > 80 ? "…" : ""}"`,
+        `PR #${pr}: filtered out @${item.comment.author} (${verdict}): "${snippet}${
+          item.comment.body.length > 80 ? "…" : ""
+        }"`,
       );
     }
   }

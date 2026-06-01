@@ -7,7 +7,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { AGENT_KINDS, isAgentKind, type AgentKind } from "./agent.ts";
+import { AGENT_KINDS, type AgentKind, isAgentKind } from "./agent.ts";
 
 export interface Config {
   defaultAgent?: AgentKind;
@@ -29,11 +29,9 @@ export function loadConfig(path: string = defaultConfigPath()): Config {
   }
 
   const out: Config = {};
-  if (raw.defaultAgent != undefined) {
+  if (raw.defaultAgent !== undefined) {
     if (typeof raw.defaultAgent !== "string" || !isAgentKind(raw.defaultAgent)) {
-      throw new Error(
-        `${path}: defaultAgent must be one of: ${AGENT_KINDS.join(", ")}`,
-      );
+      throw new Error(`${path}: defaultAgent must be one of: ${AGENT_KINDS.join(", ")}`);
     }
     out.defaultAgent = raw.defaultAgent;
   }

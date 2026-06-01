@@ -5,8 +5,8 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AgentSpec } from "./agent.ts";
-import type { Logger } from "./log.ts";
 import { attachIterm } from "./iterm.ts";
+import type { Logger } from "./log.ts";
 import { terminalNotifier } from "./notify.ts";
 import { runSync, sleep } from "./process.ts";
 import { shellQuote, whichSync } from "./shell.ts";
@@ -31,9 +31,7 @@ export interface PopOptions {
   log: Logger;
 }
 
-export type PopResult =
-  | { ok: true; session: string; cwd: string }
-  | { ok: false; error: string };
+export type PopResult = { ok: true; session: string; cwd: string } | { ok: false; error: string };
 
 export async function pop(opts: PopOptions): Promise<PopResult> {
   const tmuxPath = whichSync("tmux");
@@ -69,12 +67,16 @@ export async function pop(opts: PopOptions): Promise<PopResult> {
     return launchLazy({ ...opts, tmuxPath, wrappedCmd });
   }
 
-  opts.log(
-    "INFO",
-    `tmux new-session: name=${opts.sessionName} cwd=${opts.cwd} cmd=${wrappedCmd}`,
-  );
+  opts.log("INFO", `tmux new-session: name=${opts.sessionName} cwd=${opts.cwd} cmd=${wrappedCmd}`);
   const tmuxRes = runSync([
-    tmuxPath, "new-session", "-d", "-s", opts.sessionName, "-c", opts.cwd, wrappedCmd,
+    tmuxPath,
+    "new-session",
+    "-d",
+    "-s",
+    opts.sessionName,
+    "-c",
+    opts.cwd,
+    wrappedCmd,
   ]);
   if (tmuxRes.exitCode !== 0) {
     return {
@@ -88,13 +90,15 @@ export async function pop(opts: PopOptions): Promise<PopResult> {
   // back up, so leaving an orphan session running is more wasteful than
   // user-friendly.
   const hookRes = runSync([
-    tmuxPath, "set-hook", "-t", opts.sessionName, "client-detached", "kill-session",
+    tmuxPath,
+    "set-hook",
+    "-t",
+    opts.sessionName,
+    "client-detached",
+    "kill-session",
   ]);
   if (hookRes.exitCode !== 0) {
-    opts.log(
-      "WARN",
-      `tmux set-hook client-detached failed: ${hookRes.stderr.trim()}`,
-    );
+    opts.log("WARN", `tmux set-hook client-detached failed: ${hookRes.stderr.trim()}`);
   }
 
   if (opts.autoAttach !== false) {

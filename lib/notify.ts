@@ -182,9 +182,12 @@ function ensureNotificationHelper(log: Logger): string | null {
     log("WARN", `skipped AppIcon install: no bundled icon was readable`);
   }
 
-  const signResult = runSync(["/usr/bin/codesign", "--force", "--deep", "--sign", "-", paths.appDir], {
-    timeoutMs: 30000,
-  });
+  const signResult = runSync(
+    ["/usr/bin/codesign", "--force", "--deep", "--sign", "-", paths.appDir],
+    {
+      timeoutMs: 30000,
+    },
+  );
   if (signResult.error || signResult.exitCode !== 0) {
     log(
       "WARN",
@@ -243,10 +246,14 @@ export function terminalNotifier(
     "-a",
     helperApp,
     "--args",
-    "--session", session,
-    "--tmux-path", tmuxPath,
-    "--ttl-seconds", String(HELPER_TTL_SECONDS),
-    "--agent-name", options.agentName,
+    "--session",
+    session,
+    "--tmux-path",
+    tmuxPath,
+    "--ttl-seconds",
+    String(HELPER_TTL_SECONDS),
+    "--agent-name",
+    options.agentName,
   ];
   if (options.lazy) args.push("--lazy");
   if (options.launchScriptPath) {

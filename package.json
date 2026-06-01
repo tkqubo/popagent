@@ -1,6 +1,6 @@
 {
   "name": "popagent",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "Pop an AI agent into tmux + iTerm2 from a prompt (macOS)",
   "type": "module",
   "bin": {
@@ -41,12 +41,17 @@
     "build": "tsup",
     "dev": "bun popagent.ts",
     "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check .",
+    "check:write": "biome check --write .",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "citty": "^0.2.2"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.4.16",
     "@types/node": "^25.8.0",
     "tsup": "^8.0.0",
     "typescript": "^6.0.3"
