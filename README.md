@@ -94,6 +94,10 @@ Details:
   - Code-line review comments (individual comments anchored to a diff line).
   - Review submissions with a non-empty body (the summary written when submitting "Comment" / "Request changes" / "Approve"). Bare approvals with no body are ignored.
 - AI classifications are cached on disk at `$XDG_CACHE_HOME/popagent/filter-cache.json` (default `~/.cache/popagent/filter-cache.json`). Restarting watch (e.g. with `--since 4d`) doesn't re-spend AI calls on already-judged comments. If a comment is edited later, its `updated_at` makes the cached entry stale and it is re-judged. Entries older than 90 days are pruned automatically. Delete the file to start fresh.
+- The notification is built to be triageable at a glance — important with `--lazy`, where you decide whether to spend an agent (and its tokens) purely from the notification:
+  - **title** — `<agent>: PR #<n>` (e.g. `Claude Code: PR #4298`).
+  - **subtitle** — for a single comment, a one-line summary of what it asks for. When the AI filter ran (`--filter non-issue`) the summary comes for free from that same classification call; with `--filter off` or on a parse failure it falls back to the comment's opening text. For a batch of comments it shows the count instead.
+  - **body** — the click affordance (`Click to start & attach in iTerm2`).
 - Only reacts to feedback posted **after** the watcher starts; pre-existing items are ignored.
 - Multiple new items seen in a single poll **on the same PR** are batched into one agent pop. Different PRs always get their own pop (separate tmux session per PR).
 - Requires `gh` to be installed and authenticated (`gh auth login`).

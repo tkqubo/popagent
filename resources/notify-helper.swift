@@ -13,6 +13,7 @@ private struct Options {
   let lazy: Bool
   let agentName: String
   let context: String?
+  let prLabel: String?
 }
 
 private func parseOptions() -> Options? {
@@ -24,6 +25,7 @@ private func parseOptions() -> Options? {
   var lazy = false
   var agentName = "AI Agent"
   var context: String?
+  var prLabel: String?
 
   var index = 1
   while index < args.count {
@@ -57,6 +59,10 @@ private func parseOptions() -> Options? {
       guard index + 1 < args.count else { return nil }
       context = args[index + 1]
       index += 2
+    case "--pr-label":
+      guard index + 1 < args.count else { return nil }
+      prLabel = args[index + 1]
+      index += 2
     default:
       index += 1
     }
@@ -70,7 +76,8 @@ private func parseOptions() -> Options? {
     launchScriptPath: launchScriptPath,
     lazy: lazy,
     agentName: agentName,
-    context: context
+    context: context,
+    prLabel: prLabel
   )
 }
 
@@ -216,10 +223,16 @@ let delegate = NotificationDelegate(
 center.delegate = delegate
 
 let content = UNMutableNotificationContent()
-content.title =
-  opts.lazy
-  ? "Click to start \(opts.agentName) session"
-  : "\(opts.agentName) session started"
+if let prLabel = opts.prLabel, !prLabel.isEmpty {
+  // PR-scoped (watch): keep the title short and informative so the subtitle
+  // can carry the comment summary. The click affordance lives in the body.
+  content.title = "\(opts.agentName): \(prLabel)"
+} else {
+  content.title =
+    opts.lazy
+    ? "Click to start \(opts.agentName) session"
+    : "\(opts.agentName) session started"
+}
 if let context = opts.context, !context.isEmpty {
   content.subtitle = context
 }

@@ -26,8 +26,14 @@ export interface PopOptions {
   autoAttach?: boolean;
   /** Defer tmux + agent startup until the user clicks the notification (requires autoAttach=false) */
   lazy?: boolean;
-  /** Optional one-line subtitle for the notification (e.g. "Responding to PR #4298 comment"). */
+  /** Optional one-line subtitle for the notification (e.g. the comment summary). */
   notificationContext?: string;
+  /**
+   * Optional PR label (e.g. "PR #4298") shown in the notification title as
+   * `<agent>: <label>`. When absent, the title falls back to the generic
+   * "Click to start …" / "… started" wording.
+   */
+  notificationPrLabel?: string;
   log: Logger;
 }
 
@@ -108,6 +114,7 @@ export async function pop(opts: PopOptions): Promise<PopResult> {
       agentName: opts.agent.displayName,
       lazy: false,
       context: opts.notificationContext,
+      prLabel: opts.notificationPrLabel,
     });
     if (!notified) {
       opts.log(
@@ -139,6 +146,7 @@ function launchLazy(ctx: LazyContext): PopResult {
     agentName: ctx.agent.displayName,
     lazy: true,
     context: ctx.notificationContext,
+    prLabel: ctx.notificationPrLabel,
   });
   if (!notified) {
     return {

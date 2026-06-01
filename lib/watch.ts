@@ -10,6 +10,7 @@ import {
   classifyComment,
   type FilterMode,
   filterEnabled,
+  SUMMARY_MAX_CHARS,
   shouldPop,
 } from "./filter.ts";
 import { FilterCache } from "./filter-cache.ts";
@@ -156,11 +157,12 @@ export async function watchPr(opts: WatchOptions): Promise<WatchResult> {
 
         if (fresh.length > 0) {
           opts.log("INFO", `PR #${pr}: detected ${fresh.length} new/edited comment(s)`);
-          const toPop = filterActive
+          const filtered = filterActive
             ? await applyFilter(fresh, opts, pr, slug, filterCache)
-            : fresh;
+            : { survivors: fresh, summaryByKey: new Map<string, string | null>() };
+          const toPop = filtered.survivors;
           if (toPop.length > 0) {
-            await handleNewComments(opts, slug, pr, toPop);
+            await handleNewComments(opts, slug, pr, toPop, filtered.summaryByKey);
           } else if (filterActive) {
             opts.log(
               "INFO",
@@ -185,13 +187,19 @@ interface FilterItem {
   stale: boolean;
 }
 
+interface FilterResult {
+  survivors: PrComment[];
+  /** comment.key → one-line summary (null when none available). */
+  summaryByKey: Map<string, string | null>;
+}
+
 async function applyFilter(
   fresh: PrComment[],
   opts: WatchOptions,
   pr: number,
   slug: string,
   cache: FilterCache,
-): Promise<PrComment[]> {
+): Promise<FilterResult> {
   // Build per-comment metadata so we can iterate without parallel arrays /
   // index-based array access.
   const items: FilterItem[] = fresh.map((comment) => {
@@ -214,16 +222,20 @@ async function applyFilter(
     toClassify.map((item) => classifyComment(item.comment, opts.agent, opts.log)),
   );
   const classificationByItem = new Map<FilterItem, Classification>();
+  const freshSummaryByItem = new Map<FilterItem, string | null>();
   toClassify.forEach((item, j) => {
-    const d = classifications[j];
-    if (d !== undefined) classificationByItem.set(item, d);
+    const result = classifications[j];
+    if (result !== undefined) {
+      classificationByItem.set(item, result.classification);
+      freshSummaryByItem.set(item, result.summary);
+    }
   });
 
   const agentName = opts.agent.command;
   for (const item of toClassify) {
     const d = classificationByItem.get(item);
     if (d !== undefined && d !== "uncertain") {
-      cache.set(item.cacheKey, d, agentName);
+      cache.set(item.cacheKey, d, agentName, freshSummaryByItem.get(item) ?? null);
     }
   }
   if (toClassify.length > 0) cache.flush();
@@ -238,13 +250,19 @@ async function applyFilter(
   }
 
   const survivors: PrComment[] = [];
+  const summaryByKey = new Map<string, string | null>();
   for (const item of items) {
-    const d = item.hit && !item.stale ? item.hit.classification : classificationByItem.get(item);
+    const fromCache = item.hit && !item.stale;
+    const d = fromCache ? item.hit?.classification : classificationByItem.get(item);
     // Defensive fallback: if we somehow lack a verdict, lean toward popping so
     // the comment isn't silently dropped.
     const verdict: Classification = d ?? "uncertain";
     if (shouldPop(verdict, opts.filterMode)) {
       survivors.push(item.comment);
+      const summary = fromCache
+        ? (item.hit?.summary ?? null)
+        : (freshSummaryByItem.get(item) ?? null);
+      summaryByKey.set(item.comment.key, summary);
     } else {
       const snippet = item.comment.body.replace(/\s+/g, " ").slice(0, 80);
       opts.log(
@@ -258,7 +276,7 @@ async function applyFilter(
   if (survivors.length > 0) {
     opts.log("INFO", `PR #${pr}: ${survivors.length}/${fresh.length} comment(s) survived filter`);
   }
-  return survivors;
+  return { survivors, summaryByKey };
 }
 
 async function handleNewComments(
@@ -266,6 +284,7 @@ async function handleNewComments(
   slug: string,
   pr: number,
   comments: PrComment[],
+  summaryByKey: Map<string, string | null>,
 ): Promise<void> {
   const prompt = buildPrompt(slug, pr, comments);
   const session = `ai-watch-${pr}-${Math.floor(Date.now() / 1000)}`;
@@ -278,7 +297,8 @@ async function handleNewComments(
     title: `PR #${pr} review`,
     autoAttach: false, // watch is notification-driven
     lazy: opts.lazy,
-    notificationContext: buildNotificationContext(pr, comments),
+    notificationPrLabel: `PR #${pr}`,
+    notificationContext: buildNotificationContext(comments, summaryByKey),
     log: opts.log,
   });
 
@@ -289,9 +309,24 @@ async function handleNewComments(
   }
 }
 
-function buildNotificationContext(pr: number, comments: PrComment[]): string {
-  const noun = comments.length === 1 ? "a comment" : `${comments.length} comments`;
-  return `Responding to ${noun} on PR #${pr}`;
+/**
+ * Notification subtitle. The PR number lives in the title now, so:
+ *   - single comment → the AI summary, falling back to a first-line snippet of
+ *     the comment body when no summary is available (e.g. `--filter off`).
+ *   - multiple comments → a plain count (per-comment summaries can't be merged
+ *     into one useful line).
+ */
+function buildNotificationContext(
+  comments: PrComment[],
+  summaryByKey: Map<string, string | null>,
+): string {
+  if (comments.length === 1) {
+    const c = comments[0];
+    const summary = summaryByKey.get(c.key)?.trim();
+    const text = summary ? summary : c.body.replace(/\s+/g, " ").trim();
+    return text.length > SUMMARY_MAX_CHARS ? `${text.slice(0, SUMMARY_MAX_CHARS - 1)}…` : text;
+  }
+  return `Responding to ${comments.length} comments`;
 }
 
 function buildPrompt(slug: string, pr: number, comments: PrComment[]): string {

@@ -224,6 +224,11 @@ export interface TerminalNotifierOptions {
   lazy: boolean;
   /** Optional one-line subtitle describing what the agent is going to work on. */
   context?: string;
+  /**
+   * Optional PR label (e.g. "PR #4298"). When present, the title becomes
+   * `<agentName>: <prLabel>`; otherwise the helper uses its generic title.
+   */
+  prLabel?: string;
 }
 
 /**
@@ -261,6 +266,9 @@ export function terminalNotifier(
   }
   if (options.context) {
     args.push("--context", options.context);
+  }
+  if (options.prLabel) {
+    args.push("--pr-label", options.prLabel);
   }
 
   log("INFO", `notify-helper: ${args.map(shellQuote).join(" ")}`);
