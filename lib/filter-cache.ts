@@ -28,6 +28,12 @@ export interface CachedEntry {
   agent: string;
   /** ISO-8601 timestamp of when this entry was written. */
   at: string;
+  /**
+   * One-line summary of the comment for the notification subtitle, when the
+   * classifier produced one. Optional so entries written by older versions
+   * (no summary field) still load.
+   */
+  summary?: string | null;
 }
 
 const FILE_VERSION = 1;
@@ -103,11 +109,12 @@ export class FilterCache {
     return this.entries.get(key);
   }
 
-  set(key: string, classification: CachedVerdict, agent: string): void {
+  set(key: string, classification: CachedVerdict, agent: string, summary?: string | null): void {
     this.entries.set(key, {
       classification,
       agent,
       at: new Date().toISOString(),
+      summary: summary ?? null,
     });
     this.dirty = true;
   }

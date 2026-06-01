@@ -1,6 +1,6 @@
 {
   "name": "popagent",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Pop an AI agent into tmux + iTerm2 from a prompt (macOS)",
   "type": "module",
   "bin": {

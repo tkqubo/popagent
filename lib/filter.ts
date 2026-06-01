@@ -15,6 +15,19 @@ export type FilterMode = "non-issue" | "off";
 
 export type Classification = "needs_action" | "non_issue" | "uncertain";
 
+/** Max length of the one-line summary surfaced in the notification subtitle. */
+export const SUMMARY_MAX_CHARS = 48;
+
+export interface ClassifyResult {
+  classification: Classification;
+  /**
+   * One-line imperative summary of what the comment asks for, for the
+   * notification subtitle. `null` when not extractable (parse failure,
+   * `uncertain`, or a `non_issue` that needs no summary).
+   */
+  summary: string | null;
+}
+
 export const FILTER_MODES: FilterMode[] = ["non-issue", "off"];
 
 export function isFilterMode(v: string): v is FilterMode {
@@ -58,8 +71,8 @@ export async function classifyComment(
   agent: AgentSpec,
   log: Logger,
   timeoutMs: number = DEFAULT_TIMEOUT_MS,
-): Promise<Classification> {
-  if (!agent.headlessRun) return "uncertain";
+): Promise<ClassifyResult> {
+  if (!agent.headlessRun) return { classification: "uncertain", summary: null };
   const prompt = buildPrompt(comment);
   const { command, args } = agent.headlessRun(prompt);
   const r = runSync([command, ...args], { timeoutMs });
@@ -69,9 +82,13 @@ export async function classifyComment(
       `filter: ${command} ${comment.key} exited ${r.exitCode}` +
         (r.stderr.trim() ? ` stderr=${r.stderr.trim().slice(0, 200)}` : ""),
     );
-    return "uncertain";
+    return { classification: "uncertain", summary: null };
   }
-  return parseClassification(r.stdout);
+  const classification = parseClassification(r.stdout);
+  return {
+    classification,
+    summary: classification === "needs_action" ? parseSummary(r.stdout) : null,
+  };
 }
 
 function buildPrompt(comment: PrComment): string {
@@ -93,9 +110,12 @@ function buildPrompt(comment: PrComment): string {
   return [
     "You are a triage classifier deciding whether a GitHub PR comment requires a code or text response from the PR author.",
     "",
-    "Reply with EXACTLY one token and nothing else:",
-    "  NEEDS_ACTION  — the author should respond or change code",
-    "  NON_ISSUE     — pure acknowledgement, approval, thanks, FYI, or otherwise no action needed",
+    "Reply with EXACTLY two lines and nothing else:",
+    "  Line 1: one token — NEEDS_ACTION or NON_ISSUE",
+    "    NEEDS_ACTION  — the author should respond or change code",
+    "    NON_ISSUE     — pure acknowledgement, approval, thanks, FYI, or otherwise no action needed",
+    `  Line 2: SUMMARY: <imperative one-line summary of the requested action, ${SUMMARY_MAX_CHARS} chars max>`,
+    "    Only when NEEDS_ACTION. For NON_ISSUE write 'SUMMARY:' with nothing after it.",
     "",
     "Lean toward NEEDS_ACTION whenever there is any ambiguity.",
     "",
@@ -105,6 +125,25 @@ function buildPrompt(comment: PrComment): string {
     "",
     "Answer:",
   ].join("\n");
+}
+
+/**
+ * Extract the `SUMMARY:` line the classifier was asked to emit. Tolerant of
+ * leading whitespace, markdown bullets, and surrounding quotes. Returns `null`
+ * when no non-empty summary is present.
+ */
+function parseSummary(stdout: string): string | null {
+  for (const rawLine of stdout.split(/\r?\n/)) {
+    const match = rawLine.match(/summary:\s*(.*)$/i);
+    if (!match) continue;
+    const value = match[1]
+      .trim()
+      .replace(/^["'`]+|["'`]+$/g, "")
+      .trim();
+    if (value.length === 0) return null;
+    return value.length > SUMMARY_MAX_CHARS ? `${value.slice(0, SUMMARY_MAX_CHARS - 1)}…` : value;
+  }
+  return null;
 }
 
 function parseClassification(stdout: string): Classification {
