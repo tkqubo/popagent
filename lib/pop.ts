@@ -1,9 +1,13 @@
 /**
  * The core of "pop": spin up tmux + iTerm2 + an AI agent for a given prompt.
  */
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { AgentSpec } from "./agent.ts";
 import type { Logger } from "./log.ts";
 import { attachIterm } from "./iterm.ts";
+import { terminalNotifier } from "./notify.ts";
 import { runSync, sleep } from "./process.ts";
 import { shellQuote, whichSync } from "./shell.ts";
 
@@ -18,6 +22,12 @@ export interface PopOptions {
   sessionName: string;
   /** Sent as `/rename <title>` via tmux send-keys after launch */
   title?: string;
+  /** When false, use notification helper instead of immediate iTerm auto-attach */
+  autoAttach?: boolean;
+  /** Defer tmux + agent startup until the user clicks the notification (requires autoAttach=false) */
+  lazy?: boolean;
+  /** Optional one-line subtitle for the notification (e.g. "Responding to PR #4298 comment"). */
+  notificationContext?: string;
   log: Logger;
 }
 
@@ -31,11 +41,33 @@ export async function pop(opts: PopOptions): Promise<PopResult> {
     return { ok: false, error: "tmux not found. Run `brew install tmux`." };
   }
 
-  const agentArgv = [opts.agent.command, ...opts.agent.buildArgs(opts.prompt)];
+  // Resolve the agent binary to an absolute path now, while we still inherit
+  // the caller's PATH. Lazy mode runs the launch script via osascript→iTerm,
+  // which executes `/bin/sh` with a minimal environment that may not include
+  // ~/.zshrc additions like /opt/homebrew/bin or version-manager shims.
+  const agentBinary = whichSync(opts.agent.command);
+  if (!agentBinary) {
+    return {
+      ok: false,
+      error: `${opts.agent.command} not found in PATH. Install it or adjust PATH before running popagent.`,
+    };
+  }
+
+  const agentArgv = [agentBinary, ...opts.agent.buildArgs(opts.prompt)];
   const agentCmd = agentArgv.map(shellQuote).join(" ");
   const userShell = process.env.SHELL || "/bin/zsh";
   // Keep the tmux session alive after the agent exits by execing into a login shell.
   const wrappedCmd = `${agentCmd}; exec ${shellQuote(userShell)} -l`;
+
+  if (opts.lazy) {
+    if (opts.autoAttach !== false) {
+      return {
+        ok: false,
+        error: "lazy mode requires attach=notify (cannot combine with auto-attach)",
+      };
+    }
+    return launchLazy({ ...opts, tmuxPath, wrappedCmd });
+  }
 
   opts.log(
     "INFO",
@@ -51,7 +83,35 @@ export async function pop(opts: PopOptions): Promise<PopResult> {
     };
   }
 
-  attachIterm(opts.sessionName, opts.log);
+  // Destroy the session as soon as the last client detaches. Agents that
+  // support resume (claude --resume, codex resume) can pick the conversation
+  // back up, so leaving an orphan session running is more wasteful than
+  // user-friendly.
+  const hookRes = runSync([
+    tmuxPath, "set-hook", "-t", opts.sessionName, "client-detached", "kill-session",
+  ]);
+  if (hookRes.exitCode !== 0) {
+    opts.log(
+      "WARN",
+      `tmux set-hook client-detached failed: ${hookRes.stderr.trim()}`,
+    );
+  }
+
+  if (opts.autoAttach !== false) {
+    attachIterm(opts.sessionName, opts.log);
+  } else {
+    const notified = terminalNotifier(opts.sessionName, opts.log, {
+      agentName: opts.agent.displayName,
+      lazy: false,
+      context: opts.notificationContext,
+    });
+    if (!notified) {
+      opts.log(
+        "WARN",
+        `notification helper failed; run \`tmux attach -t ${opts.sessionName}\` manually`,
+      );
+    }
+  }
 
   // Wait for the agent UI to render, then send `/rename`.
   if (opts.title) {
@@ -59,6 +119,54 @@ export async function pop(opts: PopOptions): Promise<PopResult> {
   }
 
   return { ok: true, session: opts.sessionName, cwd: opts.cwd };
+}
+
+interface LazyContext extends PopOptions {
+  tmuxPath: string;
+  wrappedCmd: string;
+}
+
+function launchLazy(ctx: LazyContext): PopResult {
+  const scriptPath = writeLazyLaunchScript(ctx);
+  ctx.log("INFO", `lazy mode: launch script written to ${scriptPath}`);
+
+  const notified = terminalNotifier(ctx.sessionName, ctx.log, {
+    launchScriptPath: scriptPath,
+    agentName: ctx.agent.displayName,
+    lazy: true,
+    context: ctx.notificationContext,
+  });
+  if (!notified) {
+    return {
+      ok: false,
+      error: `notification helper failed; lazy mode requires it. script left at ${scriptPath}`,
+    };
+  }
+  return { ok: true, session: ctx.sessionName, cwd: ctx.cwd };
+}
+
+function writeLazyLaunchScript(ctx: LazyContext): string {
+  const dir = mkdtempSync(join(tmpdir(), "popagent-"));
+  const scriptPath = join(dir, "launch.sh");
+
+  const tmux = shellQuote(ctx.tmuxPath);
+  const session = shellQuote(ctx.sessionName);
+  const cwd = shellQuote(ctx.cwd);
+  const wrapped = shellQuote(ctx.wrappedCmd);
+
+  const renameBlock = ctx.title
+    ? `( sleep 2; ${ctx.tmuxPath} send-keys -t ${session} ${shellQuote(`/rename ${ctx.title}`)} Enter ) &\n`
+    : "";
+
+  const script = `#!/bin/sh
+set -e
+${tmux} new-session -d -s ${session} -c ${cwd} ${wrapped}
+${tmux} set-hook -t ${session} client-detached kill-session
+${renameBlock}rm -rf -- ${shellQuote(dir)}
+exec ${tmux} attach -t ${session}
+`;
+  writeFileSync(scriptPath, script, { mode: 0o755 });
+  return scriptPath;
 }
 
 /**
