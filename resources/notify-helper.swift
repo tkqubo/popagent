@@ -125,7 +125,16 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     withCompletionHandler completionHandler: @escaping () -> Void
   ) {
     let info = response.notification.request.content.userInfo
+    // Derive the action from the *clicked notification's* userInfo, not from
+    // this process's launch arguments. Each notification spawns its own helper
+    // instance, but all instances share one bundle id, so macOS can route a
+    // click (or a rapid second click) to an instance that did not post that
+    // notification. Reading session / tmux path / launch script from userInfo
+    // guarantees we act on the notification the user actually clicked instead
+    // of replaying this instance's own (possibly already-started) session.
     let responseSession = (info["popagentSession"] as? String) ?? defaultSession
+    let responseTmuxPath = (info["popagentTmuxPath"] as? String) ?? tmuxPath
+    let responseScript = (info["popagentLaunchScript"] as? String) ?? launchScriptPath
     defer {
       completionHandler()
       finish()
@@ -136,10 +145,10 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
       // Lazy mode: run the prepared shell script (which itself spawns tmux + agent
       // before attaching). Eager mode: just attach to the already-running session.
       let command: String
-      if let scriptPath = launchScriptPath, !scriptPath.isEmpty {
+      if let scriptPath = responseScript, !scriptPath.isEmpty {
         command = "/bin/sh " + scriptPath
       } else {
-        command = tmuxPath + " attach -t " + responseSession
+        command = responseTmuxPath + " attach -t " + responseSession
       }
       openIterm(command: command)
     }
@@ -225,9 +234,16 @@ if #available(macOS 12.0, *) {
 }
 content.categoryIdentifier = categoryIdentifier
 content.threadIdentifier = "popagent-" + opts.session
-content.userInfo = [
-  "popagentSession": opts.session
+// Carry everything the click handler needs in userInfo so any helper instance
+// that receives the click can act on *this* notification (see the delegate).
+var userInfo: [String: Any] = [
+  "popagentSession": opts.session,
+  "popagentTmuxPath": opts.tmuxPath,
 ]
+if let launchScriptPath = opts.launchScriptPath, !launchScriptPath.isEmpty {
+  userInfo["popagentLaunchScript"] = launchScriptPath
+}
+content.userInfo = userInfo
 
 let request = UNNotificationRequest(
   identifier: "popagent." + opts.session + "." + UUID().uuidString,

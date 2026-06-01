@@ -158,15 +158,25 @@ function writeLazyLaunchScript(ctx: LazyContext): string {
   const cwd = shellQuote(ctx.cwd);
   const wrapped = shellQuote(ctx.wrappedCmd);
 
+  // Indented so the optional rename only runs on first launch (inside the `if`).
   const renameBlock = ctx.title
-    ? `( sleep 2; ${ctx.tmuxPath} send-keys -t ${session} ${shellQuote(`/rename ${ctx.title}`)} Enter ) &\n`
+    ? `\t( sleep 2; ${ctx.tmuxPath} send-keys -t ${session} ${shellQuote(`/rename ${ctx.title}`)} Enter ) &\n`
     : "";
 
+  // This script must be safe to run more than once. macOS can route a single
+  // notification click to multiple notifier instances (they share one bundle
+  // id), and a rapid double-click can replay this script. The `has-session`
+  // guard makes a re-run attach to the existing session instead of failing on a
+  // duplicate `new-session` — without it, `set -e` aborts before `exec` and
+  // iTerm reports "A session ended very soon after starting". For the same
+  // reason we do NOT delete the script here: a re-run needs the file to still
+  // exist. The temp dir lives under $TMPDIR and is reaped by macOS.
   const script = `#!/bin/sh
 set -e
-${tmux} new-session -d -s ${session} -c ${cwd} ${wrapped}
-${tmux} set-hook -t ${session} client-detached kill-session
-${renameBlock}rm -rf -- ${shellQuote(dir)}
+if ! ${tmux} has-session -t ${session} 2>/dev/null; then
+\t${tmux} new-session -d -s ${session} -c ${cwd} ${wrapped}
+\t${tmux} set-hook -t ${session} client-detached kill-session
+${renameBlock}fi
 exec ${tmux} attach -t ${session}
 `;
   writeFileSync(scriptPath, script, { mode: 0o755 });
