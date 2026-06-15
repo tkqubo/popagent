@@ -51,7 +51,7 @@
     "citty": "^0.2.2"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.16",
+    "@biomejs/biome": "2.5.0",
     "@types/node": "^25.8.0",
     "tsup": "^8.0.0",
     "typescript": "^6.0.3"
