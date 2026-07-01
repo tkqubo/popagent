@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: npm-publish   # optional: gate with required reviewers in repo settings
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
